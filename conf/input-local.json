@@ -1,0 +1,11 @@
+[
+  {
+    "name": "sentineltest",
+    "format": "temporal-geotiff",
+    "backend": {
+      "type": "hadoop",
+      "path": "/home/kkaralas/Documents/vboxshare/multiband_rgbnir_3857.tif"
+    },
+    "cache": "NONE"
+  }
+]
