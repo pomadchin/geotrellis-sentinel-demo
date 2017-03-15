@@ -14,23 +14,22 @@ libraryDependencies ++= Seq(
   "org.scalatest"         %%  "scalatest"      % "3.0.0" % "test"
 )
 
-assemblyMergeStrategy in assembly := {
-  case "reference.conf" => MergeStrategy.concat
-  case "application.conf" => MergeStrategy.concat
-  case "META-INF/MANIFEST.MF" => MergeStrategy.discard
-  case "META-INF\\MANIFEST.MF" => MergeStrategy.discard
-  case "META-INF/ECLIPSEF.RSA" => MergeStrategy.discard
-  case "META-INF/ECLIPSEF.SF" => MergeStrategy.discard
-  case _ => MergeStrategy.first
+assemblyShadeRules in assembly := {
+  val shadePackage = "com.azavea.shaded.demo"
+  Seq(
+    ShadeRule.rename("com.google.common.**" -> s"$shadePackage.google.common.@1")
+      .inLibrary(
+      "com.azavea.geotrellis" %% "geotrellis-cassandra" % Version.geotrellis,
+        "com.github.fge" % "json-schema-validator" % "2.2.6"
+    ).inAll
+  )
 }
 
-// assemblyShadeRules in assembly := {
-//   val shadePackage = "com.azavea.shaded.demo"
-//   Seq(
-//     ShadeRule.rename("com.google.common.**" -> s"$shadePackage.google.common.@1")
-//       .inLibrary(
-//         "org.locationtech.geotrellis" %% "geotrellis-cassandra" % Version.geotrellis,
-//         "com.github.fge" % "json-schema-validator" % "2.2.6"
-//       ).inAll
-//   )
-// }
+test in assembly := {}
+
+assemblyMergeStrategy in assembly := {
+  case m if m.toLowerCase.endsWith("manifest.mf") => MergeStrategy.discard
+  case m if m.toLowerCase.matches("meta-inf.*\\.sf$") => MergeStrategy.discard
+  case "reference.conf" | "application.conf" => MergeStrategy.concat
+  case _ => MergeStrategy.first
+}

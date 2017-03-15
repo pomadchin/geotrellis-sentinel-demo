@@ -10,7 +10,7 @@ import org.apache.spark._
 object SentinelIngestMain extends App {
     implicit val sc = SparkUtils.createSparkContext("GeoTrellis ETL SinglebandIngest", new SparkConf(true))
     try {
-      Etl.ingest[TemporalProjectedExtent, SpaceTimeKey, Tile](args)
+      Etl.ingest[TemporalProjectedExtent, SpaceTimeKey, MultibandTile](args)
     } finally {
       sc.stop()
     }

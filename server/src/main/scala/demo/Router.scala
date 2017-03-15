@@ -31,7 +31,6 @@ import scala.util.Try
 // The router routes the messages sent to it to its underlying actors called 'routees'.
 class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with AkkaSystem.LoggerExecutor {
   import scala.concurrent.ExecutionContext.Implicits.global
-
   val dateTimeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ")
   val metadataReader = readerSet.metadataReader
   val attributeStore = readerSet.attributeStore
@@ -270,7 +269,7 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
   /** Find the breaks for one layer */
   def tilesRoute =
   pathPrefix(Segment / IntNumber / IntNumber / IntNumber) { (layer, zoom, x, y) =>
-    parameters('time, 'operation ?) { (timeString, operationOpt) =>
+    parameters('time ? "2017-03-02T12:00:00+0000", 'operation ?) { (timeString, operationOpt) =>
       val time = ZonedDateTime.parse(timeString, dateTimeFormat)
 
       println("\n")
@@ -283,6 +282,9 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
             readerSet.readMultibandTile(layer, zoom, x, y, time)
 
           tileOpt.map { tile =>
+            println(s"bands: ${tile.bandCount}")
+            println(s"tile.band(0).findMinMaxDouble: ${tile.band(0).findMinMaxDouble}")
+
             val png =
               operationOpt match {
                 case Some(op) =>

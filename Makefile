@@ -133,14 +133,14 @@ ssh:
 	aws emr ssh --cluster-id ${CLUSTER_ID} --key-pair-file "${HOME}/${EC2_KEY}.pem"
 
 local-ingest: ${INGEST_ASSEMBLY}
-	spark-submit --name "${NAME} Ingest" --master "local[4]" --driver-memory 4G \
+	spark-submit --name "${NAME} Ingest" --master "local[4]" --driver-memory 7G \
 ${INGEST_ASSEMBLY} \
 --backend-profiles "file:///${PWD}/conf/backend-profiles.json" \
 --input "file://${PWD}/conf/input-local.json" \
 --output "file://${PWD}/conf/output-local.json"
 
 local-tile-server: CATALOG=catalog
-local-tile-server:
+local-tile-server: ${SERVER_ASSEMBLY}
 	spark-submit --name "${NAME} Service" --master "local" --driver-memory 1G \
 ${SERVER_ASSEMBLY} local ${CATALOG}
 
@@ -183,5 +183,11 @@ update-tile-server: ${SERVER_ASSEMBLY}
 	@aws s3 cp ${SERVER_ASSEMBLY} ${S3_URI}/
 	@aws emr ssh --cluster-id $(CLUSTER_ID) --key-pair-file "${HOME}/${EC2_KEY}.pem" \
 		--command "aws s3 cp ${S3_URI}/server-assembly-0.1.0.jar /tmp/tile-server.jar && (sudo stop tile-server; sudo start tile-server)"
+
+local-webui-py3:
+	cd viewer; npm install && npm run build && cd ./dist && python -m http.server 8000	
+
+local-webui-py2:
+	cd viewer; npm install && npm run build && cd ./dist && python -m SimpleHTTPServer 8000	
 
 .PHONY: local-ingest ingest local-tile-server update-route53 get-logs
