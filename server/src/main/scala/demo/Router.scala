@@ -283,6 +283,7 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
 
           tileOpt.map { tile =>
             println(s"bands: ${tile.bandCount}")
+            println(s"tile.band(0).findMinMaxDouble: ${tile.band(0).findMinMaxDouble}")
 
             val png =
               operationOpt match {
