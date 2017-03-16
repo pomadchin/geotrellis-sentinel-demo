@@ -19,6 +19,9 @@ object Render {
   def image(tile: MultibandTile): Png =
     tile.renderPng()
 
+  //def image(tile: Tile): Png =
+    //tile.renderPng(ndviColorBreaks)
+
   /*def image(tile: MultibandTile): Png = {
     val (red, green, blue) =
     if(tile.cellType == UShortCellType) {

@@ -1,5 +1,3 @@
-include config-aws.mk			# Vars related to AWS credentials and services used
-include config-emr.mk	    # Vars related to type and size of EMR cluster
 include config-ingest.mk  # Vars related to ingest step and spark parameters
 
 SERVER_ASSEMBLY := server/target/scala-2.11/server-assembly-0.1.0.jar
