@@ -272,7 +272,7 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
     parameters('time ? "2017-03-02T12:00:00+0000", 'operation ?) { (timeString, operationOpt) =>
       val time = ZonedDateTime.parse(timeString, dateTimeFormat)
 
-      println("\n")
+      println("\nI am in!!!")
       println(layer, zoom, x, y, time)
 
       complete {

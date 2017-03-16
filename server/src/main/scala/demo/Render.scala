@@ -16,7 +16,10 @@ object Render {
   val waterDiffColorBreaks =
     ColorMap.fromStringDouble("0.2:aacdff44;0.3:1269e2ff;0.4:094aa5ff;1:012c69ff").get
 
-  def image(tile: MultibandTile): Png = {
+  def image(tile: MultibandTile): Png =
+    tile.renderPng()
+
+  /*def image(tile: MultibandTile): Png = {
     val (red, green, blue) =
     if(tile.cellType == UShortCellType) {
       // Landsat
@@ -84,7 +87,7 @@ object Render {
     val adjBlue = blue.map(adjust _)
 
     ArrayMultibandTile(adjRed, adjGreen, adjBlue).renderPng
-  }
+  }*/
 
   def ndvi(tile: MultibandTile): Png =
     NDVI(tile).renderPng(ndviColorBreaks)
