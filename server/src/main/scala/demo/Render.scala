@@ -92,8 +92,16 @@ object Render {
     ArrayMultibandTile(adjRed, adjGreen, adjBlue).renderPng
   }*/
 
-  def ndvi(tile: MultibandTile): Png =
-    NDVI(tile).renderPng(ndviColorBreaks)
+  //def ndvi(tile: MultibandTile): Png =
+    //NDVI(tile).renderPng(ndviColorBreaks)
+
+  def ndvi(tile: MultibandTile): Png = {
+    val ndvi =
+      tile.convert(DoubleConstantNoDataCellType).combineDouble(0, 2) { (r, ir) =>
+        Calculations.ndvi(r, ir);
+      }
+    ndvi.renderPng(Render.ndviColorBreaks)
+  }
 
   def ndvi(tile1: MultibandTile, tile2: MultibandTile): Png =
     (NDVI(tile1) - NDVI(tile2)).renderPng(ndviDiffColorBreaks)
