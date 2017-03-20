@@ -35,6 +35,9 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
   val metadataReader = readerSet.metadataReader
   val attributeStore = readerSet.attributeStore
 
+  val ndviColorMap =
+    ColorMap.fromStringDouble("0.05:ffffe5aa;0.1:f7fcb9ff;0.2:d9f0a3ff;0.3:addd8eff;0.4:78c679ff;0.5:41ab5dff;0.6:238443ff;0.7:006837ff;1:004529ff").get
+
   def pngAsHttpResponse(png: Png): HttpResponse =
     HttpResponse(entity = HttpEntity(ContentType(MediaTypes.`image/png`), png.bytes))
 
@@ -59,6 +62,100 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
       pathPrefix("mean") { polygonalMeanRoute } ~
       pathPrefix("series") { timeseriesRoute } ~
       pathPrefix("readall") { readallRoute }
+
+  /** Return a JSON representation of the catalog */
+  def catalogRoute =
+    cors() {
+      get { // GET !
+        println("\ncatalogRoute")
+        import spray.json.DefaultJsonProtocol._
+        complete {
+          Future {
+            val layerInfo =
+              metadataReader.layerNamesToZooms //Map[String, Array[Int]]
+                .keys
+                .toList
+                .sorted
+                .map { name =>
+                  // assemble catalog from metadata common to all zoom levels
+                  val extent = {
+                    println(name)
+                    println(attributeStore.readMetadata[
+                      TileLayerMetadata[SpaceTimeKey]](LayerId(name, 0)))
+                    val (extent, crs) = Try {
+                      attributeStore.read[(Extent, CRS)](LayerId(name, 0), "extent")
+                    }.getOrElse((LatLng.worldExtent, LatLng))
+                    extent.reproject(crs, LatLng)
+                  }
+                  println(extent)
+                  (name, extent)
+                }
+
+
+            JsObject(
+              "layers" ->
+                layerInfo.map { li =>
+                  val (name, extent) = li
+                  JsObject(
+                    "name" -> JsString(name),
+                    "extent" -> JsArray(Vector(Vector(extent.xmin, extent.ymin).toJson, Vector(extent.xmax, extent.ymax).toJson)),
+                    "isLandsat" -> JsBoolean(true)
+                  )
+                }.toJson
+            )
+          }
+        }
+      }
+    }
+
+  /** Find the breaks for one layer */
+  def tilesRoute =
+    pathPrefix(Segment / IntNumber / IntNumber / IntNumber) { (layer, zoom, x, y) =>
+      parameters('time ? "2017-03-02T12:00:00+0000", 'operation ?) { (timeString, operationOpt) =>
+        val time = ZonedDateTime.parse(timeString, dateTimeFormat)
+
+        println("\nI am in!!!")
+        println(layer, zoom, x, y, time)
+
+        complete {
+          Future {
+            println("\ntilesRoute")
+
+            val tileOpt =
+              readerSet.readSinglebandTile(layer, zoom, x, y, time)
+              //readerSet.readMultibandTile(layer, zoom, x, y, time)
+
+            tileOpt.map { tile =>
+              //println(s"bands: ${tile.bandCount}")
+              //println(s"tile.band(0).findMinMaxDouble: ${tile.band(0).findMinMaxDouble}")
+
+              val png =
+                operationOpt match {
+                  case Some(op) =>
+                    op match {
+                      case "ndvi" =>
+                        //Render.image(tile) // Render.ndvi(tile)
+                        val ndvi = tile.convert(DoubleConstantNoDataCellType)
+                        ndvi.renderPng(ndviColorMap)
+                      case "ndwi" =>
+                        //Render.image(tile) // Render.ndwi(tile)
+                        val ndvi = tile.convert(DoubleConstantNoDataCellType)
+                        ndvi.renderPng(ndviColorMap)
+                      case _ =>
+                        sys.error(s"UNKNOWN OPERATION $op")
+                    }
+                  case None =>
+                    //Render.image(tile)
+                    val ndvi = tile.convert(DoubleConstantNoDataCellType)
+                    ndvi.renderPng(ndviColorMap)
+                }
+              //println(s"BYTES: ${png.bytes.length}")
+              pngAsHttpResponse(png)
+            }
+          }
+        }
+      }
+    }
 
   def timeseriesRoute = {
     println("\ntimeseriesRoute")
@@ -178,51 +275,6 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
     }
   }
 
-  /** Return a JSON representation of the catalog */
-  def catalogRoute =
-    cors() {
-      get { // GET !
-        println("\ncatalogRoute")
-        import spray.json.DefaultJsonProtocol._
-        complete {
-          Future {
-            val layerInfo =
-              metadataReader.layerNamesToZooms //Map[String, Array[Int]]
-                .keys
-                .toList
-                .sorted
-                .map { name =>
-                  // assemble catalog from metadata common to all zoom levels
-                  val extent = {
-                    println(name)
-                    println(attributeStore.readMetadata[
-                      TileLayerMetadata[SpaceTimeKey]](LayerId(name, 0)))
-                    val (extent, crs) = Try {
-                      attributeStore.read[(Extent, CRS)](LayerId(name, 0), "extent")
-                    }.getOrElse((LatLng.worldExtent, LatLng))
-                    extent.reproject(crs, LatLng)
-                  }
-                  println(extent)
-                  (name, extent)
-                }
-
-
-            JsObject(
-              "layers" ->
-                layerInfo.map { li =>
-                  val (name, extent) = li
-                  JsObject(
-                    "name" -> JsString(name),
-                    "extent" -> JsArray(Vector(Vector(extent.xmin, extent.ymin).toJson, Vector(extent.xmax, extent.ymax).toJson)),
-                    "isLandsat" -> JsBoolean(true)
-                  )
-                }.toJson
-            )
-          }
-        }
-      }
-    }
-
   def readallRoute = {
     println("\nreadallRoute")
     import spray.json._
@@ -260,50 +312,6 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
                 )
               }).toList.toJson)
             }
-          }
-        }
-      }
-    }
-  }
-
-  /** Find the breaks for one layer */
-  def tilesRoute =
-  pathPrefix(Segment / IntNumber / IntNumber / IntNumber) { (layer, zoom, x, y) =>
-    parameters('time ? "2017-03-02T12:00:00+0000", 'operation ?) { (timeString, operationOpt) =>
-      val time = ZonedDateTime.parse(timeString, dateTimeFormat)
-
-      println("\nI am in!!!")
-      println(layer, zoom, x, y, time)
-
-      complete {
-        Future {
-          println("\ntilesRoute")
-          val tileOpt =
-            readerSet.readMultibandTile(layer, zoom, x, y, time)
-            //readerSet.readSinglebandTile(layer, zoom, x, y, time)
-
-          tileOpt.map { tile =>
-            println(s"bands: ${tile.bandCount}")
-            println(s"tile.band(0).findMinMaxDouble: ${tile.band(0).findMinMaxDouble}")
-
-            //val png = Render.image(tile)
-
-            val png =
-              operationOpt match {
-                case Some(op) =>
-                  op match {
-                    case "ndvi" =>
-                      Render.ndvi(tile)
-                    case "ndwi" =>
-                      Render.ndwi(tile)
-                    case _ =>
-                      sys.error(s"UNKNOWN OPERATION $op")
-                  }
-                case None =>
-                  Render.image(tile)
-              }
-            println(s"BYTES: ${png.bytes.length}")
-            pngAsHttpResponse(png)
           }
         }
       }

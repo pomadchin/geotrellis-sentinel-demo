@@ -4,7 +4,7 @@
     "format": "temporal-geotiff",
     "backend": {
       "type": "hadoop",
-      "path": "/home/kkaralas/Documents/vboxshare/r-g-nir-datetime.tif"
+      "path": "/home/kkaralas/Documents/shared/data/singleband_ndvi_3857.tif"
     },
     "cache": "NONE"
   }
