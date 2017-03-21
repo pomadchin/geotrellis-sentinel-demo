@@ -11,7 +11,8 @@ import spray.json.DefaultJsonProtocol._
 class MetadataReader(attributeStore: AttributeStore) {
   def read[K: SpatialComponent: JsonFormat](layer: LayerId) = {
     val md = attributeStore.readMetadata[TileLayerMetadata[K]](layer)
-    LayerMetadata(md)
+    val times = attributeStore.read[Array[Long]](LayerId(layer.name, 0), "times")
+    LayerMetadata(md, times)
   }
 
   lazy val layerNamesToZooms =

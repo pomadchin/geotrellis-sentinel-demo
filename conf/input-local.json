@@ -1,6 +1,6 @@
 [
   {
-    "name": "sentineltest",
+    "name": "prespes",
     "format": "temporal-geotiff",
     "backend": {
       "type": "hadoop",

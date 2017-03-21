@@ -79,26 +79,29 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
                 .map { name =>
                   // assemble catalog from metadata common to all zoom levels
                   val extent = {
-                    println(name)
-                    println(attributeStore.readMetadata[
-                      TileLayerMetadata[SpaceTimeKey]](LayerId(name, 0)))
                     val (extent, crs) = Try {
                       attributeStore.read[(Extent, CRS)](LayerId(name, 0), "extent")
                     }.getOrElse((LatLng.worldExtent, LatLng))
+
                     extent.reproject(crs, LatLng)
                   }
-                  println(extent)
-                  (name, extent)
+
+                  val times = attributeStore.read[Array[Long]](LayerId(name, 0), "times")
+                    .map { instant =>
+                      dateTimeFormat.format(ZonedDateTime.ofInstant(instant, ZoneOffset.ofHours(-4)))
+                    }
+                  (name, extent, times.sorted)
                 }
 
 
             JsObject(
               "layers" ->
                 layerInfo.map { li =>
-                  val (name, extent) = li
+                  val (name, extent, times) = li
                   JsObject(
                     "name" -> JsString(name),
                     "extent" -> JsArray(Vector(Vector(extent.xmin, extent.ymin).toJson, Vector(extent.xmax, extent.ymax).toJson)),
+                    "times" -> times.toJson,
                     "isLandsat" -> JsBoolean(true)
                   )
                 }.toJson
@@ -111,7 +114,7 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
   /** Find the breaks for one layer */
   def tilesRoute =
     pathPrefix(Segment / IntNumber / IntNumber / IntNumber) { (layer, zoom, x, y) =>
-      parameters('time ? "2017-03-02T12:00:00+0000", 'operation ?) { (timeString, operationOpt) =>
+      parameters('time, 'operation ?) { (timeString, operationOpt) =>
         val time = ZonedDateTime.parse(timeString, dateTimeFormat)
 
         println("\nI am in!!!")
@@ -238,18 +241,35 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
                   }
                   val extent = geometry.envelope
 
+                  println(op)
+                  println(extent)
+
                   val fn = op match {
                     case "ndvi" => NDVI.apply(_)
                     case "ndwi" => NDWI.apply(_)
                     case _ => sys.error(s"UNKNOWN OPERATION")
                   }
 
+
+
+                  println("before rdd1")
+                  println(rawGeometry)
+
                   val rdd1 = catalog
-                    .query[SpaceTimeKey, MultibandTile, TileLayerMetadata[SpaceTimeKey]](layerId)
+                    .query[SpaceTimeKey, Tile, TileLayerMetadata[SpaceTimeKey]](layerId)
                     .where(At(ZonedDateTime.parse(time, dateTimeFormat)))
                     .where(Intersects(extent))
                     .result
-                  val answer1 = ContextRDD(rdd1.mapValues({ v => fn(v) }), rdd1.metadata).polygonalMean(geometry)
+
+                  println("yoye")
+
+
+                  val answer1 = ContextRDD(rdd1.mapValues({ v => (v) }), rdd1.metadata).polygonalMean(geometry)
+
+
+                  println(answer1)
+
+                  println("before rdd2")
 
                   val answer2: Double = otherTime match {
                     case None => 0.0
