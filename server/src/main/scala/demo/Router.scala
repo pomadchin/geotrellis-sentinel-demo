@@ -71,6 +71,8 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
         import spray.json.DefaultJsonProtocol._
         complete {
           Future {
+
+
             val layerInfo =
               metadataReader.layerNamesToZooms //Map[String, Array[Int]]
                 .keys

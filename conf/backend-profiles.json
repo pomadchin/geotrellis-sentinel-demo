@@ -1,14 +1,6 @@
 {
   "backend-profiles": [
     {
-      "name": "accumulo-local",
-      "type": "accumulo",
-      "zookeepers": "localhost",
-      "instance": "gis",
-      "user": "user",
-      "password": "secret"
-    },
-    {
       "name": "cassandra-local",
       "type": "cassandra",
       "allowRemoteDCsForLocalConsistencyLevel": false,

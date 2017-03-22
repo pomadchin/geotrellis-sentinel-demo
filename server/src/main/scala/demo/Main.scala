@@ -1,8 +1,6 @@
 package demo
 
-import geotrellis.spark.io.accumulo._
 import geotrellis.spark.io.cassandra._
-import geotrellis.spark.io.hbase._
 
 import org.apache.spark._
 import org.apache.accumulo.core.client.security.tokens._
@@ -39,8 +37,14 @@ object Main {
     implicit val sc = new SparkContext(conf)
 
     val readerSet = {
-      val localCatalog = args(1)
-      new FileReaderSet(localCatalog)
+      //val localCatalog = args(1)
+      //new FileReaderSet(localCatalog)
+
+      val zooKeeper = args(1).split(",")
+      val master = args(2)
+      val instance = BaseCassandraInstance(zooKeeper, master)
+
+      new CassandraReaderSet(instance)
      }
 
     val router = new Router(readerSet, sc)

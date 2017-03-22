@@ -138,9 +138,11 @@ ${INGEST_ASSEMBLY} \
 --output "file://${PWD}/conf/output-local.json"
 
 local-tile-server: CATALOG=catalog
+local-tile-server: ZOOS=localhost
+local-tile-server: MASTER=localhost
 local-tile-server: ${SERVER_ASSEMBLY}
 	spark-submit --name "${NAME} Service" --master "local" --driver-memory 1G \
-${SERVER_ASSEMBLY} local ${CATALOG}
+${SERVER_ASSEMBLY} cassandra ${ZOOS} ${MASTER}
 
 define UPSERT_BODY
 {
