@@ -1,10 +1,19 @@
 [
   {
-    "name": "prespes",
+    "name": "t34tel",
     "format": "temporal-geotiff",
     "backend": {
       "type": "hadoop",
-      "path": "/home/kkaralas/Documents/vboxshare/singleband_ndvi_3857.tif"
+      "path": "/home/kkaralas/Documents/shared/data/t34tel"
+    },
+    "cache": "NONE"
+  },
+  {
+    "name": "t34sfj",
+    "format": "temporal-geotiff",
+    "backend": {
+      "type": "hadoop",
+      "path": "/home/kkaralas/Documents/shared/data/t34tel"
     },
     "cache": "NONE"
   }

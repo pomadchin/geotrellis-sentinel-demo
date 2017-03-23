@@ -162,57 +162,6 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
       }
     }
 
-  def timeseriesRoute = {
-    println("\ntimeseriesRoute")
-    import spray.json.DefaultJsonProtocol._
-
-    pathPrefix(Segment / Segment) { (layer, op) =>
-      parameters('lat, 'lng, 'zoom ?) { (lat, lng, zoomLevel) =>
-        cors() {
-          complete {
-            Future {
-              val zoom = zoomLevel
-                .map(_.toInt)
-                .getOrElse(metadataReader.layerNamesToMaxZooms(layer))
-
-              val catalog = readerSet.layerReader
-              val layerId = LayerId(layer, zoom)
-              val point = Point(lng.toDouble, lat.toDouble).reproject(LatLng, WebMercator)
-
-              // Wasteful but safe
-              val fn = op match {
-                case "ndvi" => NDVI.apply(_)
-                case "ndwi" => NDWI.apply(_)
-                case _ => sys.error(s"UNKNOWN OPERATION")
-              }
-
-              val rdd = catalog.query[SpaceTimeKey, MultibandTile, TileLayerMetadata[SpaceTimeKey]](layerId)
-                .where(Intersects(point.envelope))
-                .result
-
-              val mt = rdd.metadata.mapTransform
-
-              val answer = rdd
-                .map { case (k, tile) =>
-                  // reconstruct tile raster extent so we can map the point to the tile cell
-                  val re = RasterExtent(mt(k), tile.cols, tile.rows)
-                  val (tileCol, tileRow) = re.mapToGrid(point)
-                  val ret = fn(tile).getDouble(tileCol, tileRow)
-                  println(s"$point equals $ret at ($tileCol, $tileRow) in tile $re ")
-                  (k.time, ret)
-                }
-                .collect
-                .filterNot(_._2.isNaN)
-                .toJson
-
-              JsObject("answer" -> answer)
-            }
-          }
-        }
-      }
-    }
-  }
-
   def polygonalMeanRoute = {
     println("\npolygonalMeanRoute")
     import spray.json.DefaultJsonProtocol._
@@ -290,6 +239,57 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
                   JsObject("answer" -> JsNumber(answer))
                 }
               }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  def timeseriesRoute = {
+    println("\ntimeseriesRoute")
+    import spray.json.DefaultJsonProtocol._
+
+    pathPrefix(Segment / Segment) { (layer, op) =>
+      parameters('lat, 'lng, 'zoom ?) { (lat, lng, zoomLevel) =>
+        cors() {
+          complete {
+            Future {
+              val zoom = zoomLevel
+                .map(_.toInt)
+                .getOrElse(metadataReader.layerNamesToMaxZooms(layer))
+
+              val catalog = readerSet.layerReader
+              val layerId = LayerId(layer, zoom)
+              val point = Point(lng.toDouble, lat.toDouble).reproject(LatLng, WebMercator)
+
+              // Wasteful but safe
+              val fn = op match {
+                case "ndvi" => NDVI.apply(_)
+                case "ndwi" => NDWI.apply(_)
+                case _ => sys.error(s"UNKNOWN OPERATION")
+              }
+
+              val rdd = catalog.query[SpaceTimeKey, MultibandTile, TileLayerMetadata[SpaceTimeKey]](layerId)
+                .where(Intersects(point.envelope))
+                .result
+
+              val mt = rdd.metadata.mapTransform
+
+              val answer = rdd
+                .map { case (k, tile) =>
+                  // reconstruct tile raster extent so we can map the point to the tile cell
+                  val re = RasterExtent(mt(k), tile.cols, tile.rows)
+                  val (tileCol, tileRow) = re.mapToGrid(point)
+                  val ret = fn(tile).getDouble(tileCol, tileRow)
+                  println(s"$point equals $ret at ($tileCol, $tileRow) in tile $re ")
+                  (k.time, ret)
+                }
+                .collect
+                .filterNot(_._2.isNaN)
+                .toJson
+
+              JsObject("answer" -> answer)
             }
           }
         }

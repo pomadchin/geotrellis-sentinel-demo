@@ -1,7 +1,7 @@
 {
   "backend": {
     "type": "cassandra",
-    "path": "my.catalog",
+    "path": "geotrellis.catalog",
     "profile": "cassandra-local"
   },
   "reprojectMethod": "buffered",
