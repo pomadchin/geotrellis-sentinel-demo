@@ -24,7 +24,18 @@ import org.apache.spark._
 }*/
 
 object SentinelIngestMain extends App {
-  implicit val sc = SparkUtils.createSparkContext("GeoTrellis ETL SinglebandIngest", new SparkConf(true))
+  //implicit val sc = SparkUtils.createSparkContext("GeoTrellis ETL SinglebandIngest", new SparkConf(true))
+	
+  // create Spark configuration
+  val conf =
+    new SparkConf()
+      .setMaster("local[*]")
+      .setAppName("GeoTrellis ETL SinglebandIngest")
+      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+      .set("spark.kryo.registrator", "geotrellis.spark.io.kryo.KryoRegistrator")
+
+  implicit val sc = new SparkContext(conf) // create Spark context
+
   try {
     EtlConf(args) foreach { conf =>
       val etl = Etl(conf, Etl.defaultModules)
