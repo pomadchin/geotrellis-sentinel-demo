@@ -58,6 +58,7 @@ local-ingest: ${INGEST_ASSEMBLY}
 	--conf spark.yarn.driver.memoryOverhead=1g \
 	--conf spark.network.timeout=240s \
 	--conf spark.driver.maxResultSize=5g \
+	--conf spark.driver.extraJavaOptions="-XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 -XX:MaxHeapFreeRatio=70" \
 	--driver-java-options "-XX:+UseCompressedOops -XX:MaxPermSize=2g -d64 -Xms1g" \
 ${INGEST_ASSEMBLY} \
 --backend-profiles "file:///${PWD}/conf/backend-profiles.json" \
