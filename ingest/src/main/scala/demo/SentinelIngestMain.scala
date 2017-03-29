@@ -65,7 +65,7 @@ import java.io.File
 
 
 object SentinelIngestMain {
-  val inputPath = "file://" + new File("/home/kkaralas/Documents/shared/data/t34tel/S2A_MSIL2A_20161210T092402_N0204_R093_T34TEL_20161210T092356_NDVI.tif").getAbsolutePath
+  val inputPath = "file://" + new File("/home/kkaralas/Documents/shared/data/t34tel/A.tif").getAbsolutePath
   val outputPath = "data/catalog"
   def main(args: Array[String]): Unit = {
     // Setup Spark to use Kryo serializer.
@@ -104,9 +104,7 @@ object SentinelIngestMain {
     val tilerOptions = Tiler.Options(resampleMethod = NearestNeighbor)
     val tiled = ContextRDD(inputRdd.tileToLayout[SpaceTimeKey](rasterMetaData, tilerOptions), rasterMetaData)
 
-    // We'll be tiling the images using a zoomed layout scheme
-    // in the web mercator format (which fits the slippy map tile specification).
-    // We'll be creating 256 x 256 tiles.
+    // We'll be tiling the images using a zoomed layout scheme in the web mercator format
     val layoutScheme = ZoomedLayoutScheme(WebMercator, tileSize = 256)
 
     // We need to reproject the tiles to WebMercator
@@ -114,10 +112,10 @@ object SentinelIngestMain {
       TileLayerRDD(tiled, rasterMetaData)
         .reproject(WebMercator, layoutScheme, Bilinear)
 
-    // Create the attributes store that will tell us information about our catalog.
+    // Create the attributes store that will tell us information about our catalog
     //val attributeStore = FileAttributeStore(outputPath)
 
-    // Create the writer that we will use to store the tiles in the local catalog.
+    // Create the writer that we will use to store the tiles in the local catalog
     //val writer = FileLayerWriter(attributeStore)
 
     val instance: CassandraInstance = new CassandraInstance {
@@ -174,14 +172,17 @@ object SentinelIngestMain {
       }
     }
 
+    println("\nLayer Updater")
+
     // now we can just update layer
-    val source2 = "/home/kkaralas/Documents/shared/data/t34tel/S2A_MSIL2A_20161213T093402_N0204_R136_T34TEL_20161213T093819_NDVI.tif"
+    val source2 = "/home/kkaralas/Documents/shared/data/t34tel/B.tif"
+    println(s"\n$source2")
     //val source2 = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/S2A_MSIL2A_20161213T093402_N0204_R136_T34TEL_20161213T093819_NDVI.tif")
     // same steps there, to read, retile tiles
     //val reader = FileLayerReader(attributeStore)
     val reader = CassandraLayerReader(instance)
     //val updater: LayerUpdater[LayerId] = FileLayerUpdater(outputPath)
     val updater: LayerUpdater[LayerId] = new CassandraLayerUpdater(instance, attributeStore, reader)
-    updater.update[SpaceTimeKey, Tile, TileLayerMetadata[SpaceTimeKey]](LayerId("layer to be updated", zoom), reprojected)
+    updater.update[SpaceTimeKey, Tile, TileLayerMetadata[SpaceTimeKey]](LayerId("t34tel", zoom), reprojected)
   }
 }
