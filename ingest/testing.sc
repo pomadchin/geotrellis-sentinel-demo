@@ -11,14 +11,14 @@ def getListOfFiles(dir: String):List[File] = {
   }
 }
 
-val files = getListOfFiles("/home/kkaralas/Documents/shared/data/t34tel")
+val files = getListOfFiles("/home/kkaralas/Documents/vboxshare/t34tel")
 
 println(files.length)
 
 
 for(geotiff <- files) {
   println("a")
-  println(geotiff)
+  println(geotiff.toString)
 }
 
-files.foreach(file => println(file))
+//files.foreach(file => println(file))
