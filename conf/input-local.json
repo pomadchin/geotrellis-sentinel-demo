@@ -4,16 +4,7 @@
     "format": "temporal-geotiff",
     "backend": {
       "type": "hadoop",
-      "path": "/home/kkaralas/Documents/shared/data/t34tel"
-    },
-    "cache": "NONE"
-  },
-  {
-    "name": "t34sfj",
-    "format": "temporal-geotiff",
-    "backend": {
-      "type": "hadoop",
-      "path": "/home/kkaralas/Documents/shared/data/t34sfj"
+      "path": "/home/kkaralas/Documents/shared/data/t34tel/test1.tif"
     },
     "cache": "NONE"
   }
