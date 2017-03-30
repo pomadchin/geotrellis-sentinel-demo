@@ -25,17 +25,8 @@ import java.io.File
 object SentinelIngestMain {
 
   // Constants
-  val inputPath = "file://" + new File("/home/kkaralas/Documents/vboxshare/t34tel").getAbsolutePath
-  val outputPath = "data/catalog"
+  val inputPath = "file://" + new File("/home/kkaralas/Documents/shared/data/t34tel").getAbsolutePath
   val layerName = "t34tel"
-
-  // Setup Spark to use Kryo serializer.
-  val conf =
-    new SparkConf()
-      .setMaster("local[*]")
-      .setAppName("Spark Tiler")
-      .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-      .set("spark.kryo.registrator", "geotrellis.spark.io.kryo.KryoRegistrator")
 
   val instance: CassandraInstance = new CassandraInstance {
     override val username = "cassandra"
@@ -52,35 +43,62 @@ object SentinelIngestMain {
   val attrTable: String = "aaa"
   val dataTable: String = layerName
 
+
   def main(args: Array[String]): Unit = {
-    val sc = new SparkContext(conf)
-
-    try {
-      val (zoom, reprojected) = run(sc)
-      println(s"zoom: $zoom, reprojected: $reprojected")
-      // Pause to wait to close the spark context, so that you can check out the UI at http://localhost:4040
-      println("Hit enter to exit.")
-      StdIn.readLine()
-    } finally {
-      sc.stop()
-    }
-
-    println("\nStarting Layer Updater")
 
     val files = getListOfFiles("/home/kkaralas/Documents/shared/data/t34tel")
 
-    for(geotiff <- files) {
-      println(s"Updating with GeoTiff: $geotiff")
-      val sc2 = new SparkContext(conf)
-      try {
-        //update(sc2, geotiff.toString, zoom, reprojected)
-        // Pause to wait to close the spark context, so that you can check out the UI at http://localhost:4040
-        println("Hit enter to exit.")
-        StdIn.readLine()
-      } finally {
-        sc2.stop()
+    //var zoom: Int = null
+    //var reprojected: RDD[(SpaceTimeKey, Tile)] with Metadata[TileLayerMetadata[SpaceTimeKey]] = null
+
+    for((geotiff,i) <- files.zipWithIndex) {
+
+      if (i == 0) { // 1st image -> ingest
+        println(s"\nIngesting GeoTiff: $geotiff")
+
+        // Setup Spark to use Kryo serializer
+        val conf =
+          new SparkConf()
+            .setMaster("local[*]")
+            .setAppName("Spark Ingest")
+            .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+            .set("spark.kryo.registrator", "geotrellis.spark.io.kryo.KryoRegistrator")
+        val sc = new SparkContext(conf)
+
+        try {
+          var (zoom, reprojected) = run(sc)
+          println(s"\nzoom: $zoom, reprojected: $reprojected")
+          // Pause to wait to close the spark context, so that you can check out the UI at http://localhost:4040
+          println("Hit enter to exit.")
+          StdIn.readLine()
+        } finally {
+          sc.stop()
+        }
+      }
+
+      else { // remaining images -> update
+        println(s"\nUpdating with GeoTiff: $geotiff")
+
+        // Setup Spark to use Kryo serializer
+        val conf =
+          new SparkConf()
+            .setMaster("local[*]")
+            .setAppName("Spark Update")
+            .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+            .set("spark.kryo.registrator", "geotrellis.spark.io.kryo.KryoRegistrator")
+        val sc2 = new SparkContext(conf)
+
+        try {
+          //update(sc2, geotiff.toString, zoom, reprojected)
+          // Pause to wait to close the spark context, so that you can check out the UI at http://localhost:4040
+          println("Hit enter to exit.")
+          StdIn.readLine()
+        } finally {
+          sc2.stop()
+        }
       }
     }
+
   }
 
   def fullPath(path: String) = new java.io.File(path).getAbsolutePath
@@ -135,16 +153,16 @@ object SentinelIngestMain {
 
       writer.write[SpaceTimeKey, Tile, TileLayerMetadata[SpaceTimeKey]](layerId, reprojected, updatedKeyIndex)
 
-      if (zoom == 1) {
+      if (layerId.zoom == 1) {
         // Store attributes common across zooms for catalog to see
-        val id = LayerId(layerName, 0)
-        attributeStore.write(id, "times",
+        //val id = LayerId(layerName, 0)
+        attributeStore.write(layerId, "times",
           rdd
             .map(_._1.instant)
             .countByValue
             .keys.toArray
             .sorted)
-        attributeStore.write(id, "extent",
+        attributeStore.write(layerId, "extent",
           (rdd.metadata.extent, rdd.metadata.crs))
       }
     }
