@@ -72,6 +72,7 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
         complete {
           Future {
 
+            println("asd")
 
             val layerInfo =
               metadataReader.layerNamesToZooms //Map[String, Array[Int]]
@@ -87,6 +88,8 @@ class Router(readerSet: ReaderSet, sc: SparkContext) extends Directives with Akk
 
                     extent.reproject(crs, LatLng)
                   }
+
+
 
                   val times = attributeStore.read[Array[Long]](LayerId(name, 0), "times")
                     .map { instant =>

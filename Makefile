@@ -35,6 +35,7 @@ viewer/site.tgz: $(call rwildcard, viewer/components, *.js)
 --steps Type=CUSTOM_JAR,Name="Ingest ${LAYER_NAME}",Jar=command-runner.jar,Args=[\
 spark-submit,--master,yarn-cluster,\
 --class,demo.SentinelIngestMain,\
+--class,demo.SentinelUpdateMain,\
 --driver-memory,${DRIVER_MEMORY},\
 --driver-cores,${DRIVER_CORES},\
 --executor-memory,${EXECUTOR_MEMORY},\
@@ -50,6 +51,22 @@ clean:
 	rm -rf viewer/dist/*
 
 local-ingest: ${INGEST_ASSEMBLY}
+	spark-submit --name "${NAME} Ingest" --master "local[4]" --driver-memory 10G \
+	--driver-cores 1 \
+	--executor-memory 8g \
+	--executor-cores 1 \
+	--conf spark.yarn.executor.memoryOverhead=1g \
+	--conf spark.yarn.driver.memoryOverhead=1g \
+	--conf spark.network.timeout=240s \
+	--conf spark.driver.maxResultSize=5g \
+	--conf spark.driver.extraJavaOptions="-XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=70 -XX:MaxHeapFreeRatio=70" \
+	--driver-java-options "-XX:+UseCompressedOops -XX:MaxPermSize=2g -d64 -Xms1g" \
+${INGEST_ASSEMBLY} \
+--backend-profiles "file:///${PWD}/conf/backend-profiles.json" \
+--input "file://${PWD}/conf/input-local.json" \
+--output "file://${PWD}/conf/output-local.json"
+
+local-update: ${INGEST_ASSEMBLY}
 	spark-submit --name "${NAME} Ingest" --master "local[4]" --driver-memory 10G \
 	--driver-cores 1 \
 	--executor-memory 8g \
