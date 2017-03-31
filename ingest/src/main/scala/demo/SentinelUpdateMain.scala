@@ -22,7 +22,7 @@ import spray.json.DefaultJsonProtocol._
 /**
   * Created by kkaralas on 3/31/17.
   */
-object SentinelUpdateMain {
+object SentinelUpdateMain extends App {
 
   val instance: CassandraInstance = new CassandraInstance {
     override val username = "cassandra"
@@ -47,6 +47,8 @@ object SentinelUpdateMain {
       .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .set("spark.kryo.registrator", "geotrellis.spark.io.kryo.KryoRegistrator")
   implicit val sc = new SparkContext(conf)
+
+  println("\n\n\nasdasdasd")
 
   val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/test2.tif")
 
@@ -74,6 +76,9 @@ object SentinelUpdateMain {
     if (z == 0) {
       val id = LayerId(layerName, 0)
       val times = attributeStore.read[Array[Long]](id, "times") // read times
+
+      println(s"\n\n$times")
+
       attributeStore.delete(id, "times") // delete it
       attributeStore.write(id, "times", // write new on the zero zoom level
         (times ++ rdd
