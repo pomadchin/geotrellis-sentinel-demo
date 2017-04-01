@@ -56,13 +56,13 @@ object SentinelIngestMain extends App {
   val tiled = ContextRDD(source.tileToLayout[SpaceTimeKey](md, tilerOptions), md)
   val (zoom, reprojected) = tiled.reproject(WebMercator, ZoomedLayoutScheme(WebMercator), NearestNeighbor)
 
-  val attributeStore = FileAttributeStore("catalog")
-  val writer = FileLayerWriter(attributeStore)
-
   // Create the attributes store that will tell us information about our catalog
-  //val attributeStore = CassandraAttributeStore(instance)
+  val attributeStore = CassandraAttributeStore(instance)
   // Create the writer that we will use to store the tiles in the Cassandra catalog
-  //val writer = CassandraLayerWriter(attributeStore, keyspace, dataTable)
+  val writer = CassandraLayerWriter(attributeStore, keyspace, dataTable)
+
+  //val attributeStore = FileAttributeStore("catalog")
+  //val writer = FileLayerWriter(attributeStore)
 
   /*
   // We want an everyday index, but loading one tile, we have limited keyIndex space by tiles metadata information

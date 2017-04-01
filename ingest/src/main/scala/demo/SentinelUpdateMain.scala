@@ -63,11 +63,11 @@ object SentinelUpdateMain extends App {
   val (zoom, reprojected) = tiled.reproject(WebMercator, ZoomedLayoutScheme(WebMercator), NearestNeighbor)
 
   // Use the same Cassandra instance used for the first ingest
-  //val attributeStore = CassandraAttributeStore(instance)
-  val attributeStore = FileAttributeStore("catalog")
+  val attributeStore = CassandraAttributeStore(instance)
+  //val attributeStore = FileAttributeStore("catalog")
 
-  //val updater = CassandraLayerUpdater(attributeStore)
-  val updater = FileLayerUpdater("catalog")
+  val updater = CassandraLayerUpdater(attributeStore)
+  //val updater = FileLayerUpdater("catalog")
 
   // We'll be tiling the images using a zoomed layout scheme in the web mercator format
   val layoutScheme = ZoomedLayoutScheme(WebMercator, tileSize = 256)
