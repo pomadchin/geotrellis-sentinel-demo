@@ -14,6 +14,7 @@ import geotrellis.spark.io.cassandra._
 import geotrellis.spark.io.file.{FileAttributeStore, FileLayerWriter}
 import geotrellis.spark.pyramid._
 import geotrellis.spark.tiling._
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.joda.time.DateTime
 import spray.json._
@@ -46,7 +47,7 @@ object SentinelIngestMain extends App {
       .set("spark.kryo.registrator", "geotrellis.spark.io.kryo.KryoRegistrator")
   implicit val sc = new SparkContext(conf)
 
-  val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/test1.tif")
+  val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/vboxshare/t34tel/test1.tif")
 
   val (_, md) = TileLayerMetadata.fromRdd[TemporalProjectedExtent, Tile, SpaceTimeKey](source, FloatingLayoutScheme(256))
 
@@ -55,11 +56,15 @@ object SentinelIngestMain extends App {
   val tiled = ContextRDD(source.tileToLayout[SpaceTimeKey](md, tilerOptions), md)
   val (zoom, reprojected) = tiled.reproject(WebMercator, ZoomedLayoutScheme(WebMercator), NearestNeighbor)
 
-  // Create the attributes store that will tell us information about our catalog
-  val attributeStore = CassandraAttributeStore(instance)
-  // Create the writer that we will use to store the tiles in the Cassandra catalog
-  val writer = CassandraLayerWriter(attributeStore, keyspace, dataTable)
+  val attributeStore = FileAttributeStore("catalog")
+  val writer = FileLayerWriter(attributeStore)
 
+  // Create the attributes store that will tell us information about our catalog
+  //val attributeStore = CassandraAttributeStore(instance)
+  // Create the writer that we will use to store the tiles in the Cassandra catalog
+  //val writer = CassandraLayerWriter(attributeStore, keyspace, dataTable)
+
+  /*
   // We want an everyday index, but loading one tile, we have limited keyIndex space by tiles metadata information
   val keyIndex: KeyIndexMethod[SpaceTimeKey] = ZCurveKeyIndexMethod.byDay()
 
@@ -68,6 +73,27 @@ object SentinelIngestMain extends App {
     case kb: KeyBounds[SpaceTimeKey] => KeyBounds(
       kb.minKey.copy(instant = DateTime.parse("2015-01-01").getMillis),
       kb.maxKey.copy(instant = DateTime.parse("2020-01-01").getMillis)
+    )
+  })
+  */
+
+  // source to a folder with all tiffs
+  val sources: RDD[(TemporalProjectedExtent, Tile)] = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/vboxshare/t34tel")
+  // collected metadata
+  val (_, mdall) = TileLayerMetadata.fromRdd[TemporalProjectedExtent, Tile, SpaceTimeKey](sources, FloatingLayoutScheme(256))
+  // key index
+  val keyIndex = ZCurveKeyIndexMethod.byDay()
+
+  // grab the extent of the whole datasets, to calculate initial layer key bounds
+  val extent = sources.map(_._1.extent).reduce(_ combine _)
+  // entire data set key bounds
+  val KeyBounds(minKeySpatial, maxKeySpatial) = KeyBounds(mdall.mapTransform(extent))
+
+  // We increased in this case date time range, but you can modify anything in your “preset” key bounds
+  val updatedKeyIndex = keyIndex.createIndex(mdall.bounds match {
+    case kb: KeyBounds[SpaceTimeKey] => KeyBounds(
+      kb.minKey.copy(col = minKeySpatial.col, row = minKeySpatial.row, instant = DateTime.parse("2015-01-01").getMillis),
+      kb.maxKey.copy(col = maxKeySpatial.col, row = maxKeySpatial.row, instant = DateTime.parse("2020-01-01").getMillis)
     )
   })
 

@@ -10,13 +10,16 @@ import geotrellis.spark.io._
 import geotrellis.spark.io.index._
 import geotrellis.spark.io.hadoop._
 import geotrellis.spark.io.cassandra._
-import geotrellis.spark.io.file.{FileAttributeStore, FileLayerUpdater}
+import geotrellis.spark.io.file.{FileAttributeStore, FileLayerUpdater, FileLayerWriter}
 import geotrellis.spark.pyramid._
 import geotrellis.spark.tiling._
+import geotrellis.vector.Extent
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.joda.time.DateTime
 import spray.json._
 import spray.json.DefaultJsonProtocol._
+
 
 
 /**
@@ -48,9 +51,9 @@ object SentinelUpdateMain extends App {
       .set("spark.kryo.registrator", "geotrellis.spark.io.kryo.KryoRegistrator")
   implicit val sc = new SparkContext(conf)
 
-  println("\n\n\nasdasdasd")
+  println("\n\nSentinelUpdateMain")
 
-  val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/test2.tif")
+  val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/vboxshare/t34tel/test2.tif")
 
   val (_, md) = TileLayerMetadata.fromRdd[TemporalProjectedExtent, Tile, SpaceTimeKey](source, FloatingLayoutScheme(256))
 
@@ -60,9 +63,11 @@ object SentinelUpdateMain extends App {
   val (zoom, reprojected) = tiled.reproject(WebMercator, ZoomedLayoutScheme(WebMercator), NearestNeighbor)
 
   // Use the same Cassandra instance used for the first ingest
-  val attributeStore = CassandraAttributeStore(instance)
+  //val attributeStore = CassandraAttributeStore(instance)
+  val attributeStore = FileAttributeStore("catalog")
 
-  val updater = CassandraLayerUpdater(attributeStore)
+  //val updater = CassandraLayerUpdater(attributeStore)
+  val updater = FileLayerUpdater("catalog")
 
   // We'll be tiling the images using a zoomed layout scheme in the web mercator format
   val layoutScheme = ZoomedLayoutScheme(WebMercator, tileSize = 256)
@@ -87,10 +92,10 @@ object SentinelUpdateMain extends App {
           .keys.toArray
           .sorted))
 
-      /*val extent = attributeStore.read[Array[Long]](id, "extent")
+      val extent = attributeStore.read[Extent](id, "extent")
       attributeStore.delete(id, "extent")
       attributeStore.write(id, "extent",
-        (md.extent, md.crs))*/
+        (md.extent.combine(extent)))
     }
   }
 
