@@ -46,7 +46,7 @@ object SentinelIngestMain extends App {
       .set("spark.kryo.registrator", "geotrellis.spark.io.kryo.KryoRegistrator")
   implicit val sc = new SparkContext(conf)
 
-  val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/test1.tif")
+  val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/S2A_MSIL2A_20161210T092402_N0204_R093_T34TEL_20161210T092356_NDVI.tif")
 
   val (_, md) = TileLayerMetadata.fromRdd[TemporalProjectedExtent, Tile, SpaceTimeKey](source, FloatingLayoutScheme(256))
 
@@ -66,7 +66,7 @@ object SentinelIngestMain extends App {
   // We increased in this case date time range, but you can modify anything in your “preset” key bounds
   val updatedKeyIndex = keyIndex.createIndex(md.bounds match {
     case kb: KeyBounds[SpaceTimeKey] => KeyBounds(
-      kb.minKey.copy(instant = DateTime.parse("2015-01-01").getMillis),
+      kb.minKey.copy(instant = DateTime.parse("2010-01-01").getMillis),
       kb.maxKey.copy(instant = DateTime.parse("2020-01-01").getMillis)
     )
   })
@@ -79,7 +79,7 @@ object SentinelIngestMain extends App {
     val layerId = LayerId(layerName, z)
 
     // Writing a layer with larger than default keyIndex space
-    writer.write[SpaceTimeKey, Tile, TileLayerMetadata[SpaceTimeKey]](layerId, reprojected, updatedKeyIndex)
+    writer.write[SpaceTimeKey, Tile, TileLayerMetadata[SpaceTimeKey]](layerId, rdd, updatedKeyIndex)
 
     if (z == 0) {
       val id = LayerId(layerName, 0)
