@@ -48,13 +48,28 @@ object SentinelIngestMain extends App {
   implicit val sc = new SparkContext(conf)
 
   val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/S2A_MSIL2A_20161210T092402_N0204_R093_T34TEL_20161210T092356_NDVI.tif")
+  val sources = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/")
+
+  val layoutScheme = ZoomedLayoutScheme(WebMercator)
 
   val (_, md) = TileLayerMetadata.fromRdd[TemporalProjectedExtent, Tile, SpaceTimeKey](source, FloatingLayoutScheme(256))
+  // collected metadata
+  val (_, mdall) = TileLayerMetadata.fromRdd[TemporalProjectedExtent, Tile, SpaceTimeKey](sources, layoutScheme)
+
+  val rmdall = {
+    val ld = mdall.layout.copy(extent = mdall.layoutExtent.reproject(md.crs, WebMercator))
+    val e = mdall.extent.reproject(md.crs, WebMercator)
+    val kb = mdall.bounds.setSpatialBounds(KeyBounds(ld.mapTransform(e)))
+
+    TileLayerMetadata(mdall.cellType, ld, e, md.crs, kb)
+  }
 
   // Keep the same number of partitions after tiling
   val tilerOptions = Tiler.Options(resampleMethod = NearestNeighbor)
   val tiled = ContextRDD(source.tileToLayout[SpaceTimeKey](md, tilerOptions), md)
-  val (zoom, reprojected) = tiled.reproject(WebMercator, ZoomedLayoutScheme(WebMercator), NearestNeighbor)
+  val (zoom, reprojected) = tiled.reproject(WebMercator, layoutScheme, NearestNeighbor)
+
+  val rmd = reprojected.metadata
 
   // Create the attributes store that will tell us information about our catalog
   val attributeStore = CassandraAttributeStore(instance)
@@ -64,28 +79,17 @@ object SentinelIngestMain extends App {
 
   /* Define wide enough keyspace for layer */
 
-  // source to a folder with all tiffs
-  val sources: RDD[(TemporalProjectedExtent, Tile)] = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/")
-  // collected metadata
-  val (_, mdall) = TileLayerMetadata.fromRdd[TemporalProjectedExtent, Tile, SpaceTimeKey](sources, FloatingLayoutScheme(256))
   // key index
   val keyIndex = ZCurveKeyIndexMethod.byDay()
 
-  // grab the extent of the whole datasets, to calculate initial layer key bounds
-  val extent = sources.map(_._1.extent).reduce(_ combine _)
-  // entire data set key bounds
-  val KeyBounds(minKeySpatial, maxKeySpatial) = KeyBounds(reprojected.metadata.mapTransform(extent))
-
   // We increased in this case date time range, but you can modify anything in your “preset” key bounds
-  val updatedKeyIndex = keyIndex.createIndex(reprojected.metadata.bounds match {
+  val updatedKeyIndex = keyIndex.createIndex(rmdall.bounds match {
     case kb: KeyBounds[SpaceTimeKey] => KeyBounds(
-      kb.minKey.copy(col = minKeySpatial.col, row = minKeySpatial.row, instant = DateTime.parse("2015-01-01").getMillis),
-      kb.maxKey.copy(col = maxKeySpatial.col, row = maxKeySpatial.row, instant = DateTime.parse("2020-01-01").getMillis)
+      kb.minKey.copy(instant = DateTime.parse("2015-01-01").getMillis),
+      kb.maxKey.copy(instant = DateTime.parse("2020-01-01").getMillis)
     )
+    case _ => sys.error("Empty bounds")
   })
-
-  // We'll be tiling the images using a zoomed layout scheme in the web mercator format
-  val layoutScheme = ZoomedLayoutScheme(WebMercator, tileSize = 256)
 
   // Pyramiding up the zoom levels, write our tiles out to Cassandra
   Pyramid.upLevels(reprojected, layoutScheme, zoom, 0, NearestNeighbor) { (rdd, z) =>
