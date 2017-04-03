@@ -58,20 +58,29 @@ object SentinelIngestMain extends App {
 
   // Create the attributes store that will tell us information about our catalog
   val attributeStore = CassandraAttributeStore(instance)
+
   // Create the writer that we will use to store the tiles in the Cassandra catalog
   val writer = CassandraLayerWriter(attributeStore, keyspace, dataTable)
 
-  //val attributeStore = FileAttributeStore("catalog")
-  //val writer = FileLayerWriter(attributeStore)
+  /* Define wide enough keyspace for layer */
 
-  // We want an everyday index, but loading one tile, we have limited keyIndex space by tiles metadata information
-  val keyIndex: KeyIndexMethod[SpaceTimeKey] = ZCurveKeyIndexMethod.byDay()
+  // source to a folder with all tiffs
+  val sources: RDD[(TemporalProjectedExtent, Tile)] = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/")
+  // collected metadata
+  val (_, mdall) = TileLayerMetadata.fromRdd[TemporalProjectedExtent, Tile, SpaceTimeKey](sources, FloatingLayoutScheme(256))
+  // key index
+  val keyIndex = ZCurveKeyIndexMethod.byDay()
+
+  // grab the extent of the whole datasets, to calculate initial layer key bounds
+  val extent = sources.map(_._1.extent).reduce(_ combine _)
+  // entire data set key bounds
+  val KeyBounds(minKeySpatial, maxKeySpatial) = KeyBounds(reprojected.metadata.mapTransform(extent))
 
   // We increased in this case date time range, but you can modify anything in your “preset” key bounds
-  val updatedKeyIndex = keyIndex.createIndex(md.bounds match {
+  val updatedKeyIndex = keyIndex.createIndex(reprojected.metadata.bounds match {
     case kb: KeyBounds[SpaceTimeKey] => KeyBounds(
-      kb.minKey.copy(instant = DateTime.parse("2010-01-01").getMillis),
-      kb.maxKey.copy(instant = DateTime.parse("2020-01-01").getMillis)
+      kb.minKey.copy(col = minKeySpatial.col, row = minKeySpatial.row, instant = DateTime.parse("2015-01-01").getMillis),
+      kb.maxKey.copy(col = maxKeySpatial.col, row = maxKeySpatial.row, instant = DateTime.parse("2020-01-01").getMillis)
     )
   })
 

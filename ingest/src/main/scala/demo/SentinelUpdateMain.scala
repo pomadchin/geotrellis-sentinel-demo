@@ -51,7 +51,7 @@ object SentinelUpdateMain extends App {
       .set("spark.kryo.registrator", "geotrellis.spark.io.kryo.KryoRegistrator")
   implicit val sc = new SparkContext(conf)
 
-  println("\n\nSentinelUpdateMain")
+  println("\nSentinelUpdateMain\n")
 
   val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/S2A_MSIL2A_20161213T093402_N0204_R136_T34TEL_20161213T093819_NDVI.tif")
 
@@ -66,22 +66,22 @@ object SentinelUpdateMain extends App {
   val attributeStore = CassandraAttributeStore(instance)
   val updater = CassandraLayerUpdater(attributeStore)
 
-  //val attributeStore = FileAttributeStore("catalog")
-  //val updater = FileLayerUpdater("catalog")
-
   // We'll be tiling the images using a zoomed layout scheme in the web mercator format
   val layoutScheme = ZoomedLayoutScheme(WebMercator, tileSize = 256)
 
   // Pyramiding up the zoom levels, update our tiles out to Cassandra
   Pyramid.upLevels(reprojected, layoutScheme, zoom, 0, NearestNeighbor) { (rdd, z) =>
     val layerId = LayerId(layerName, z)
-    val keySpace = attributeStore.readKeyIndex[SpaceTimeKey](LayerId(layerName, z)).keyBounds
 
+    val keySpace = attributeStore.readKeyIndex[SpaceTimeKey](layerId).keyBounds
     val kb = rdd.metadata.bounds match { case kb: KeyBounds[SpaceTimeKey] => kb }
-    println(s"\n\nzoom: $z")
+
+    println(s"\n\n")
     println(s"keySpace ($layerId): ${keySpace}")
     println(s"kb ($layerId): ${kb}")
+    println(s"metadata b ($layerId): ${md.bounds}")
     println(s"keySpace contains kb: ${keySpace contains kb}")
+    println(s"\n\n")
 
     updater.update[SpaceTimeKey, Tile, TileLayerMetadata[SpaceTimeKey]](layerId, rdd)
 
@@ -100,7 +100,7 @@ object SentinelUpdateMain extends App {
       val extent = attributeStore.read[Extent](id, "extent")
       attributeStore.delete(id, "extent")
       attributeStore.write(id, "extent",
-        (md.extent.combine(extent)))
+        (extent.combine(md.extent)))
     }
   }
 
