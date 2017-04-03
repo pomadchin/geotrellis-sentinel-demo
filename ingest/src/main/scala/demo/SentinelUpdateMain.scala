@@ -14,10 +14,7 @@ import geotrellis.spark.io.file.{FileAttributeStore, FileLayerUpdater, FileLayer
 import geotrellis.spark.pyramid._
 import geotrellis.spark.tiling._
 import geotrellis.vector.Extent
-<<<<<<< HEAD
-=======
 import org.apache.spark.rdd.RDD
->>>>>>> 8b3238929515e89327eec1daa7f41f5eac78b876
 import org.apache.spark.{SparkConf, SparkContext}
 import org.joda.time.DateTime
 import spray.json._
@@ -56,11 +53,7 @@ object SentinelUpdateMain extends App {
 
   println("\n\nSentinelUpdateMain")
 
-<<<<<<< HEAD
   val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/shared/data/t34tel/S2A_MSIL2A_20161213T093402_N0204_R136_T34TEL_20161213T093819_NDVI.tif")
-=======
-  val source = sc.hadoopTemporalGeoTiffRDD("/home/kkaralas/Documents/vboxshare/t34tel/test2.tif")
->>>>>>> 8b3238929515e89327eec1daa7f41f5eac78b876
 
   val (_, md) = TileLayerMetadata.fromRdd[TemporalProjectedExtent, Tile, SpaceTimeKey](source, FloatingLayoutScheme(256))
 
@@ -71,9 +64,9 @@ object SentinelUpdateMain extends App {
 
   // Use the same Cassandra instance used for the first ingest
   val attributeStore = CassandraAttributeStore(instance)
-  //val attributeStore = FileAttributeStore("catalog")
-
   val updater = CassandraLayerUpdater(attributeStore)
+
+  //val attributeStore = FileAttributeStore("catalog")
   //val updater = FileLayerUpdater("catalog")
 
   // We'll be tiling the images using a zoomed layout scheme in the web mercator format
